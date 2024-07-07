@@ -23,18 +23,30 @@ def preprocess_data():
     # Convert data to DataFrame
     df = pd.DataFrame(data)
 
-    # Convert timestamp to datetime in UTC
+    # Convert timestamp to datetime in UTC and set frequency
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s', utc=True)
     df.set_index('timestamp', inplace=True)
+    df = df.asfreq('T')  # Assuming data should have minute frequency
+
+    # Interpolate missing values
+    df['temperature'] = df['temperature'].interpolate(method='time')
 
     return df
 
 def fit_arima_model(df):
-    # Fit ARIMA model (simple example, you may need to tune order)
-    model = ARIMA(df['temperature'], order=(5, 1, 0))  # Change order as needed
-    model_fit = model.fit()
-
-    return model_fit
+    # Fit ARIMA model with a try-except block to handle errors
+    try:
+        model = ARIMA(df['temperature'], order=(5, 1, 0))  # Change order as needed
+        model_fit = model.fit()
+        return model_fit
+    except np.linalg.LinAlgError:
+        print("LinAlgError encountered. Adjusting the ARIMA order.")
+        model = ARIMA(df['temperature'], order=(1, 1, 0))  # Simpler model as a fallback
+        model_fit = model.fit()
+        return model_fit
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
 
 def predict_arima(model_fit, future_steps):
     # Predict the next value
@@ -78,10 +90,6 @@ def calculate_accuracy(df):
     accuracy = 100 - (np.sqrt(mse) / np.mean(test)) * 100
     return f"{accuracy:.2f}%"
 
-@app.route('/', methods=['GET'])
-def home():
-    return "SSNS project"
-
 @app.route('/data', methods=['GET'])
 def get_data():
     df = preprocess_data()
@@ -107,3 +115,6 @@ def get_predictions_route():
     predictions["Sensor Working?"] = sensor_working
     
     return jsonify(predictions)
+
+if __name__ == '__main__':
+    app.run(debug=True)
