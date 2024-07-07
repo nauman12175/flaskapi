@@ -78,8 +78,11 @@ def calculate_accuracy(df):
     accuracy = 100 - (np.sqrt(mse) / np.mean(test)) * 100
     return f"{accuracy:.2f}%"
 
-@app.route('/data', methods=['GET'])
+@app.route('/', methods=['GET'])
+def home():
+    return "SSNS project"
 
+@app.route('/data', methods=['GET'])
 def get_data():
     df = preprocess_data()
     data = df.reset_index().to_dict(orient='records')
@@ -104,6 +107,3 @@ def get_predictions_route():
     predictions["Sensor Working?"] = sensor_working
     
     return jsonify(predictions)
-
-if __name__ == '__main__':
-    app.run(debug=False)
