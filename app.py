@@ -2,7 +2,6 @@ from flask import Flask, jsonify
 from pymongo import MongoClient
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
-from sklearn.metrics import mean_squared_error
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
@@ -26,25 +25,14 @@ def preprocess_data():
     # Convert timestamp to datetime in UTC
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s', utc=True)
     df.set_index('timestamp', inplace=True)
-    
-    # Set the frequency of the datetime index
-    df = df.asfreq('T')  # Assuming the data is minute-wise. Adjust the frequency as needed (e.g., 'H' for hourly).
-    
-    # Handle missing values
-    df = df.fillna(method='ffill').fillna(method='bfill')
-    
+
     return df
 
 def fit_arima_model(df):
     # Fit ARIMA model (simple example, you may need to tune order)
-    try:
-        model = ARIMA(df['temperature'], order=(5, 1, 0))  # Change order as needed
-        model_fit = model.fit()
-    except np.linalg.LinAlgError:
-        # Handle the exception and try a different order
-        model = ARIMA(df['temperature'], order=(2, 1, 2))  # Change order as needed
-        model_fit = model.fit()
-    
+    model = ARIMA(df['temperature'], order=(5, 1, 0))  # Change order as needed
+    model_fit = model.fit()
+
     return model_fit
 
 def predict_arima(model_fit, future_steps):
@@ -79,16 +67,6 @@ def get_predictions(df, last_timestamp):
     
     return predictions
 
-def calculate_accuracy(df):
-    train_size = int(len(df) * 0.8)
-    train, test = df['temperature'].iloc[:train_size], df['temperature'].iloc[train_size:]
-    model = ARIMA(train, order=(5, 1, 0))
-    model_fit = model.fit()
-    predictions = model_fit.forecast(steps=len(test))
-    mse = mean_squared_error(test, predictions)
-    accuracy = 100 - (np.sqrt(mse) / np.mean(test)) * 100
-    return f"{accuracy:.2f}%"
-
 @app.route('/data', methods=['GET'])
 def get_data():
     df = preprocess_data()
@@ -100,8 +78,6 @@ def get_predictions_route():
     df = preprocess_data()
     last_timestamp = df.index[-1]  # Get the last timestamp from the DataFrame
     predictions = get_predictions(df, last_timestamp)
-    accuracy = calculate_accuracy(df)
-    predictions["accuracy"] = accuracy
     
     # Check if there is data within the last minute
     current_time_utc = datetime.now(timezone.utc)
