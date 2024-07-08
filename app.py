@@ -23,30 +23,29 @@ def preprocess_data():
     # Convert data to DataFrame
     df = pd.DataFrame(data)
 
-    # Convert timestamp to datetime in UTC and set frequency
+    # Convert timestamp to datetime in UTC
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s', utc=True)
     df.set_index('timestamp', inplace=True)
-    df = df.asfreq('T')  # Assuming data should have minute frequency
-
-    # Interpolate missing values
-    df['temperature'] = df['temperature'].interpolate(method='time')
-
+    
+    # Set the frequency of the datetime index
+    df = df.asfreq('T')  # Assuming the data is minute-wise. Adjust the frequency as needed (e.g., 'H' for hourly).
+    
+    # Handle missing values
+    df = df.fillna(method='ffill').fillna(method='bfill')
+    
     return df
 
 def fit_arima_model(df):
-    # Fit ARIMA model with a try-except block to handle errors
+    # Fit ARIMA model (simple example, you may need to tune order)
     try:
         model = ARIMA(df['temperature'], order=(5, 1, 0))  # Change order as needed
         model_fit = model.fit()
-        return model_fit
     except np.linalg.LinAlgError:
-        print("LinAlgError encountered. Adjusting the ARIMA order.")
-        model = ARIMA(df['temperature'], order=(1, 1, 0))  # Simpler model as a fallback
+        # Handle the exception and try a different order
+        model = ARIMA(df['temperature'], order=(2, 1, 2))  # Change order as needed
         model_fit = model.fit()
-        return model_fit
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
+    
+    return model_fit
 
 def predict_arima(model_fit, future_steps):
     # Predict the next value
